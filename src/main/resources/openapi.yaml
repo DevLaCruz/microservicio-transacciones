@@ -1,0 +1,110 @@
+openapi: 3.0.0
+info:
+  title: Transaction Service API
+  description: API para gestionar transacciones bancarias
+  version: 1.0.0
+servers:
+  - url: http://localhost:8081
+paths:
+  /transacciones/deposito:
+    post:
+      summary: Registrar un depósito
+      operationId: registrarDeposito
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransaccionDeposito'
+      responses:
+        '200':
+          description: Depósito registrado exitosamente
+        '400':
+          description: Error en el depósito
+  /transacciones/retiro:
+    post:
+      summary: Registrar un retiro
+      operationId: registrarRetiro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransaccionRetiro'
+      responses:
+        '200':
+          description: Retiro registrado exitosamente
+        '400':
+          description: Error en el retiro o fondos insuficientes
+  /transacciones/transferencia:
+    post:
+      summary: Registrar una transferencia
+      operationId: registrarTransferencia
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransaccionTransferencia'
+      responses:
+        '200':
+          description: Transferencia registrada exitosamente
+        '400':
+          description: Error en la transferencia o fondos insuficientes
+  /transacciones/historial:
+    get:
+      summary: Obtener historial de transacciones
+      operationId: historialTransacciones
+      responses:
+        '200':
+          description: Historial de transacciones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistorialTransaccion'
+components:
+  schemas:
+    TransaccionDeposito:
+      type: object
+      properties:
+        cuentaId:
+          type: integer
+        monto:
+          type: number
+          format: double
+    TransaccionRetiro:
+      type: object
+      properties:
+        cuentaId:
+          type: integer
+        monto:
+          type: number
+          format: double
+    TransaccionTransferencia:
+      type: object
+      properties:
+        cuentaOrigenId:
+          type: integer
+        cuentaDestinoId:
+          type: integer
+        monto:
+          type: number
+          format: double
+    HistorialTransaccion:
+      type: object
+      properties:
+        tipo:
+          type: string
+          enum: [DEPOSITO, RETIRO, TRANSFERENCIA]
+        monto:
+          type: number
+          format: double
+        fecha:
+          type: string
+          format: date-time
+        cuentaOrigenId:
+          type: integer
+        cuentaDestinoId:
+          type: integer
