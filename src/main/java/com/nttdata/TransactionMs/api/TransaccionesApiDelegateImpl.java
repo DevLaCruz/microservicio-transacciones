@@ -24,8 +24,9 @@ public class TransaccionesApiDelegateImpl implements TransaccionesApiDelegate {
     @Override
     public ResponseEntity<List<HistorialTransaccion>> historialTransacciones() {
         List<HistorialTransaccion> historial = transaccionService.obtenerHistorialTransacciones();
-        return ResponseEntity.ok(historial); // Devuelve 200 OK con el historial
+        return ResponseEntity.ok(historial);
     }
+
 
     @Override
     public ResponseEntity<Void> registrarDeposito(TransaccionDeposito transaccionDeposito) {
