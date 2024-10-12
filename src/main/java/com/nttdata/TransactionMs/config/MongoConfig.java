@@ -12,6 +12,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class MongoConfig {
 
+
+
     @Bean
     public MongoClient mongoClient() {
         CodecRegistry codecRegistry = CodecRegistries.fromRegistries(

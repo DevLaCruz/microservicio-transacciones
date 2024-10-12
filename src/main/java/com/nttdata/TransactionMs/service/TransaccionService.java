@@ -117,7 +117,6 @@ public class TransaccionService {
     }
 
 
-
     public List<HistorialTransaccion> obtenerHistorialTransacciones() {
         return transaccionRepository.findAll();
     }
