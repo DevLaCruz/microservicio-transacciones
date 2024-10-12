@@ -4,7 +4,7 @@ info:
   description: API para gestionar transacciones bancarias
   version: 1.0.0
 servers:
-  - url: http://localhost:8081
+  - url: http://localhost:8082
 paths:
   /transacciones/deposito:
     post:
