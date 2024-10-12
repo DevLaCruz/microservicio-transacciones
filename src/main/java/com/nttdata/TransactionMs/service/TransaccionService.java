@@ -18,7 +18,9 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -32,21 +34,38 @@ public class TransaccionService {
 
     private static final String CUENTAS_MS_BASE_URL = "http://localhost:8081/cuentas";  // Cambia la URL según tu configuración
 
+    private Long obtenerIdPorNumeroCuenta(String numeroCuenta) {
+        Map[] cuentas = restTemplate.getForObject(CUENTAS_MS_BASE_URL, Map[].class);
+
+        return Arrays.stream(cuentas)
+                .filter(cuenta -> numeroCuenta.equals(cuenta.get("numeroCuenta")))
+                .map(cuenta -> {
+                    Object id = cuenta.get("id");
+                    if (id instanceof Integer) {
+                        return ((Integer) id).longValue(); // Convertir de Integer a Long
+                    } else if (id instanceof Long) {
+                        return (Long) id; // Ya es Long
+                    } else {
+                        throw new IllegalArgumentException("Tipo de ID no soportado: " + id.getClass().getName());
+                    }
+                })
+                .findFirst()
+                .orElseThrow(() -> new TransaccionException("Cuenta no encontrada", HttpStatus.NOT_FOUND));
+    }
+
 
     public ResponseEntity<Void> registrarDeposito(TransaccionDeposito deposito) {
-        // URL para depositar fondos
-        String url = CUENTAS_MS_BASE_URL + "/" + deposito.getCuentaId() + "/depositar";
+        Long cuentaId = obtenerIdPorNumeroCuenta(deposito.getNumeroCuenta().toString());
+        String url = CUENTAS_MS_BASE_URL + "/" + cuentaId + "/depositar";
 
-        // Realiza la solicitud PUT
         HttpEntity<TransaccionDeposito> requestEntity = new HttpEntity<>(deposito);
         ResponseEntity<Void> response = restTemplate.exchange(url, HttpMethod.PUT, requestEntity, Void.class);
 
         if (response.getStatusCode().is2xxSuccessful()) {
-            // Registrar transacción si el depósito fue exitoso
             HistorialTransaccion transaccion = new HistorialTransaccion()
                     .tipo(HistorialTransaccion.TipoEnum.DEPOSITO)
                     .monto(deposito.getMonto())
-                    .cuentaDestinoId(deposito.getCuentaId())
+                    .cuentaDestino(deposito.getNumeroCuenta())
                     .fecha(OffsetDateTime.now());
             transaccionRepository.save(transaccion);
             return ResponseEntity.ok().build();
@@ -57,54 +76,52 @@ public class TransaccionService {
 
 
     public ResponseEntity<Void> registrarRetiro(TransaccionRetiro retiro) {
-        String url = CUENTAS_MS_BASE_URL + "/" + retiro.getCuentaId() + "/retirar";
+        Long cuentaId = obtenerIdPorNumeroCuenta(retiro.getNumeroCuenta().toString());
+        String url = CUENTAS_MS_BASE_URL + "/" + cuentaId + "/retirar";
         HttpEntity<TransaccionRetiro> requestEntity = new HttpEntity<>(retiro);
 
         try {
-            // Realiza la solicitud
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.PUT, requestEntity, String.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
-                // Registrar la transacción si el retiro fue exitoso
                 HistorialTransaccion transaccion = new HistorialTransaccion()
                         .tipo(HistorialTransaccion.TipoEnum.RETIRO)
                         .monto(retiro.getMonto())
-                        .cuentaOrigenId(retiro.getCuentaId())
+                        .cuentaOrigen(retiro.getNumeroCuenta())
                         .fecha(OffsetDateTime.now());
                 transaccionRepository.save(transaccion);
                 return ResponseEntity.ok().build();
             }
 
         } catch (HttpClientErrorException e) {
-            // Captura la excepción 400 y lanza la excepción personalizada
             String errorMessage = e.getResponseBodyAsString();
             throw new TransaccionException(errorMessage, HttpStatus.BAD_REQUEST);
         }
 
-        // En caso de que no haya sido exitoso
         throw new TransaccionException("Error desconocido al procesar el retiro", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-
     public ResponseEntity<Void> registrarTransferencia(TransaccionTransferencia transferencia) {
+        Long cuentaOrigenId = obtenerIdPorNumeroCuenta(transferencia.getCuentaOrigen().toString());
+        Long cuentaDestinoId = obtenerIdPorNumeroCuenta(transferencia.getCuentaDestino().toString());
+
         // URL para debitar de la cuenta origen
-        String urlDebitar = CUENTAS_MS_BASE_URL + "/" + transferencia.getCuentaOrigenId() + "/retirar";
+        String urlDebitar = CUENTAS_MS_BASE_URL + "/" + cuentaOrigenId + "/retirar";
         HttpEntity<TransaccionTransferencia> requestEntityDebitar = new HttpEntity<>(transferencia);
         ResponseEntity<Void> responseDebitar = restTemplate.exchange(urlDebitar, HttpMethod.PUT, requestEntityDebitar, Void.class);
 
         if (responseDebitar.getStatusCode().is2xxSuccessful()) {
             // URL para acreditar en la cuenta destino
-            String urlAcreditar = CUENTAS_MS_BASE_URL + "/" + transferencia.getCuentaDestinoId() + "/depositar";
+            String urlAcreditar = CUENTAS_MS_BASE_URL + "/" + cuentaDestinoId + "/depositar";
             HttpEntity<TransaccionTransferencia> requestEntityAcreditar = new HttpEntity<>(transferencia);
             ResponseEntity<Void> responseAcreditar = restTemplate.exchange(urlAcreditar, HttpMethod.PUT, requestEntityAcreditar, Void.class);
 
             if (responseAcreditar.getStatusCode().is2xxSuccessful()) {
-                // Registrar la transferencia si ambos pasos fueron exitosos
                 HistorialTransaccion transaccion = new HistorialTransaccion()
                         .tipo(HistorialTransaccion.TipoEnum.TRANSFERENCIA)
                         .monto(transferencia.getMonto())
-                        .cuentaOrigenId(transferencia.getCuentaOrigenId())
-                        .cuentaDestinoId(transferencia.getCuentaDestinoId())
+                        .cuentaOrigen(transferencia.getCuentaOrigen())
+                        .cuentaDestino(transferencia.getCuentaDestino())
                         .fecha(OffsetDateTime.now());
                 transaccionRepository.save(transaccion);
                 return ResponseEntity.ok().build();
