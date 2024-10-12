@@ -37,7 +37,7 @@ public class TransaccionService {
         // URL para depositar fondos
         String url = CUENTAS_MS_BASE_URL + "/" + deposito.getCuentaId() + "/depositar";
 
-        // Realizamos la solicitud usando PUT
+        // Realiza la solicitud PUT
         HttpEntity<TransaccionDeposito> requestEntity = new HttpEntity<>(deposito);
         ResponseEntity<Void> response = restTemplate.exchange(url, HttpMethod.PUT, requestEntity, Void.class);
 
